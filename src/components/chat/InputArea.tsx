@@ -2,18 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Paperclip, X, FileText, Mic, Video, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import ModelSelector from "./ModelSelector";
-import { LLMModel } from "@/lib/constants/models";
 import { validateFile, formatFileSize } from "@/lib/utils/fileHelpers";
 
 interface Props {
   onSend: (content: string, scheduledFor?: Date, useWebSearch?: boolean, attachments?: any[]) => void;
   isLoading: boolean;
-  selectedModel: LLMModel;
-  onModelChange: (model: LLMModel) => void;
 }
 
-export default function InputArea({ onSend, isLoading, selectedModel, onModelChange }: Props) {
+export default function InputArea({ onSend, isLoading }: Props) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -402,10 +398,6 @@ export default function InputArea({ onSend, isLoading, selectedModel, onModelCha
                 <Send size={18} />
               )}
             </button>
-
-            <div className="w-px h-6 bg-[#e2e8f0]" />
-
-            <ModelSelector selected={selectedModel} onChange={onModelChange} />
           </div>
         </div>
       </div>

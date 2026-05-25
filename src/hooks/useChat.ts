@@ -9,7 +9,13 @@ export function useChat(initialConversationId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [activeConvoId, setActiveConvoId] = useState<string | undefined>(initialConversationId);
 
-  const sendMessage = useCallback(async (content: string, modelId: string = "gemini-pro", useWebSearch: boolean = true, attachments?: any[]) => {
+  const sendMessage = useCallback(async (
+    content: string, 
+    modelId: string = "gemini-pro", 
+    useWebSearch: boolean = true, 
+    attachments?: any[],
+    agentName?: string // New parameter for agent service
+  ) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     const userMessage: Message = {
@@ -27,7 +33,10 @@ export function useChat(initialConversationId?: string) {
     let hasAddedPlaceholder = false;
 
     try {
-      const res = await fetch("/api/chat/stream", {
+      // Choose endpoint based on whether agent name is provided
+      const endpoint = agentName ? "/api/chat/agent" : "/api/chat/stream";
+      
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -35,7 +44,8 @@ export function useChat(initialConversationId?: string) {
           conversationId: activeConvoId, 
           modelId,
           useWebSearch,
-          attachments 
+          attachments,
+          agentName // Only used by agent endpoint
         }),
       });
 

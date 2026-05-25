@@ -1,25 +1,40 @@
 "use client";
 import { useChat } from "@/hooks/useChat";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
+import { useToast } from "@/hooks/useToast";
 import { REACTION_PROMPTS } from "@/lib/constants/reactions";
 import { DEFAULT_MODEL, LLMModel } from "@/lib/constants/models";
 import Message from "./Message";
 import InputArea from "./InputArea";
-import ModelSelector from "./ModelSelector";
+import AgentSelector from "./AgentSelector";
 import TypingIndicator from "./TypingIndicator";
+import { ToastContainer } from "@/components/ui/Toast";
+import ConnectionStatus from "@/components/ui/ConnectionStatus";
+import MyStuffSidebar from "@/components/sidebar/MyStuffSidebar";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { FileText } from "lucide-react";
 
 export default function ChatWindow({ conversationId }: { conversationId?: string }) {
-  const { messages, setMessages, isLoading, sendMessage, activeConvoId, setActiveConvoId, branchConversation } = useChat(conversationId);
+  const { messages, setMessages, isLoading, sendMessage, activeConvoId, setActiveConvoId, branchConversation, error: chatError } = useChat(conversationId);
   const scrollRef = useAutoScroll([messages, isLoading]);
+  const { toasts, removeToast, success, error, info, warning } = useToast();
   const [selectedModel, setSelectedModel] = useState<LLMModel>(DEFAULT_MODEL);
+  const [selectedAgent, setSelectedAgent] = useState('general');
+  const [selectedAgentName, setSelectedAgentName] = useState('General Assistant');
+  const [myStuffOpen, setMyStuffOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [hasRedirected, setHasRedirected] = useState(false);
+
+  // Show error toast when chat error occurs
+  useEffect(() => {
+    if (chatError) {
+      error(chatError);
+    }
+  }, [chatError, error]);
 
   // Reset state when "new" query param changes (new chat clicked)
   useEffect(() => {
@@ -53,27 +68,46 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
     if (conversationId && messages.length === 0) {
         fetch(`/api/conversations/${conversationId}`)
             .then(async (res) => {
-                if (!res.ok) return { messages: [] };
+                if (!res.ok) {
+                  error('Failed to load conversation');
+                  return { messages: [] };
+                }
                 return res.json();
             })
             .then(data => {
-                if (data && data.messages) setMessages(data.messages);
+                if (data && data.messages) {
+                  setMessages(data.messages);
+                  info('Conversation loaded');
+                }
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+              console.error(err);
+              error('Failed to load conversation');
+            });
     }
-  }, [conversationId, messages.length, setMessages]);
+  }, [conversationId, messages.length, setMessages, error, info]);
 
   const handleReact = async (messageId: string, emoji: string) => {
       setMessages(prev => prev.map(m => 
           m.id === messageId ? { ...m, reactions: [...(m.reactions || []), emoji] } : m
       ));
-      await fetch('/api/react', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageId, emoji })
-      });
-      const followUp = REACTION_PROMPTS[emoji];
-      if (followUp) sendMessage(followUp);
+      
+      try {
+        await fetch('/api/react', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId, emoji })
+        });
+        
+        const followUp = REACTION_PROMPTS[emoji];
+        if (followUp) sendMessage(followUp);
+      } catch (err) {
+        error('Failed to add reaction');
+        // Revert the optimistic update
+        setMessages(prev => prev.map(m => 
+          m.id === messageId ? { ...m, reactions: (m.reactions || []).filter(r => r !== emoji) } : m
+        ));
+      }
   };
 
   const handleBranch = async (messageId: string) => {
@@ -82,26 +116,38 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
       
       setMessages(messages.slice(0, index + 1));
       
-      if (branchConversation) {
-          const newConvoId = await branchConversation(messageId);
-          if (newConvoId) {
-             window.history.pushState({}, '', `/chat/${newConvoId}`);
-          } else {
-             if (setActiveConvoId) setActiveConvoId(undefined);
-             window.history.pushState({}, '', '/chat');
-          }
+      try {
+        if (branchConversation) {
+            const newConvoId = await branchConversation(messageId);
+            if (newConvoId) {
+               window.history.pushState({}, '', `/chat/${newConvoId}`);
+               success('Conversation branched successfully');
+            } else {
+               if (setActiveConvoId) setActiveConvoId(undefined);
+               window.history.pushState({}, '', '/chat');
+               warning('Branch created, starting new conversation');
+            }
+        }
+      } catch (err) {
+        error('Failed to branch conversation');
       }
   };
 
   const handleSend = async (content: string, scheduledFor?: Date, useWebSearch?: boolean, attachments?: any[]) => {
-      if (scheduledFor) {
-          await fetch('/api/schedule', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content, conversationId: activeConvoId, scheduledFor, modelId: selectedModel.id })
-          });
-      } else {
-          sendMessage(content, selectedModel.id, useWebSearch, attachments);
+      try {
+        if (scheduledFor) {
+            await fetch('/api/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, conversationId: activeConvoId, scheduledFor, modelId: selectedModel.id })
+            });
+            success('Message scheduled successfully');
+        } else {
+            // Always use agent service
+            await sendMessage(content, selectedModel.id, useWebSearch, attachments, selectedAgentName);
+        }
+      } catch (err) {
+        error('Failed to send message');
       }
   };
 
@@ -112,13 +158,43 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
   };
 
   return (
-    <div className="relative flex flex-col h-full w-full overflow-hidden bg-[#eef2f9]">
-      <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[450px] rounded-full bg-blue-300/40 blur-[100px] pointer-events-none" />
-      <div className="absolute top-[10%] left-[-10%] w-[350px] h-[350px] rounded-full bg-purple-300/30 blur-[90px] pointer-events-none" />
+    <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <MyStuffSidebar 
+        isOpen={myStuffOpen} 
+        onClose={() => setMyStuffOpen(false)}
+        onDocumentSelect={(id, name) => {
+          // This will be handled by InputArea
+          info(`Document "${name}" selected`);
+        }}
+      />
+      
+      <div className="relative flex flex-col h-full w-full overflow-hidden bg-[#eef2f9]">
+        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[450px] rounded-full bg-blue-300/40 blur-[100px] pointer-events-none" />
+        <div className="absolute top-[10%] left-[-10%] w-[350px] h-[350px] rounded-full bg-purple-300/30 blur-[90px] pointer-events-none" />
 
       <header className="relative z-50 flex items-center justify-between px-6 py-4 border-b border-[#e2e8f0] bg-white">
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
             <img src="/metawurks-logo.svg" alt="MetaWurks" className="h-7 w-auto" />
+            
+            {/* My Stuff Button */}
+            <button
+              onClick={() => setMyStuffOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              title="My Stuff - Manage Documents"
+            >
+              <FileText size={18} className="text-gray-700" />
+              <span className="text-sm font-medium text-gray-700">My Stuff</span>
+            </button>
+            
+            {/* Agent Selector */}
+            <AgentSelector
+              selectedAgent={selectedAgent}
+              onSelectAgent={(id, name) => {
+                setSelectedAgent(id);
+                setSelectedAgentName(name);
+              }}
+            />
         </div>
 
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
@@ -127,19 +203,25 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
             </h1>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#64748b]">
-            <span>Using model:</span>
-            <ModelSelector selected={selectedModel} onChange={setSelectedModel} align="top">
-                <motion.div 
-                    key={selectedModel.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-[#f1f5f9] rounded-md text-[#3b82f6] shadow-sm ml-0.5 hover:bg-blue-50 transition-colors"
-                >
-                    <span className="text-[14px]">{selectedModel.icon}</span>
-                    <span className="font-semibold">{selectedModel.name}</span>
-                </motion.div>
-            </ModelSelector>
+        <div className="flex items-center gap-3">
+            {/* Connection Status */}
+            <ConnectionStatus />
+            
+            {/* Loading Indicator */}
+            {isLoading && (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                <span>Processing...</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#64748b]">
+                <span>Powered by:</span>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-[#f1f5f9] rounded-md text-[#3b82f6] shadow-sm ml-0.5">
+                    <span className="text-[14px]">⚡</span>
+                    <span className="font-semibold">Groq</span>
+                </div>
+            </div>
         </div>
       </header>
 
@@ -155,9 +237,7 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
           <div className="w-full max-w-3xl">
             <InputArea 
               onSend={handleSend} 
-              isLoading={isLoading} 
-              selectedModel={selectedModel} 
-              onModelChange={setSelectedModel}
+              isLoading={isLoading}
             />
           </div>
         </div>
@@ -182,12 +262,11 @@ export default function ChatWindow({ conversationId }: { conversationId?: string
           
           <InputArea 
             onSend={handleSend} 
-            isLoading={isLoading} 
-            selectedModel={selectedModel} 
-            onModelChange={setSelectedModel}
+            isLoading={isLoading}
           />
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
