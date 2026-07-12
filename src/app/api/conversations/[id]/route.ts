@@ -6,38 +6,62 @@ import { Message } from "@/models/Message";
 import { Branch } from "@/models/Branch";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  await dbConnect();
-  const { id } = await params;
-  
-  const conversation = await Conversation.findOne({ _id: id, userId: session.user.id });
-  if (!conversation) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  
-  const messages = await Message.find({
-    conversationId: id,
-    userId: session.user.id,
-    branchId: conversation.activeBranch,
-  }).sort({ timestamp: 1 });
-  
-  return NextResponse.json({ conversation, messages });
+    const { id } = await params;
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const conversation = await Conversation.findOne({ _id: id, userId: session.user.id });
+    if (!conversation) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const rawMessages = await Message.find({
+      conversationId: id,
+      userId: session.user.id,
+      branchId: conversation.activeBranch,
+      // Hide scheduled messages that haven't been dispatched yet
+      $or: [{ isScheduled: { $ne: true } }, { scheduledFor: { $lte: new Date() } }],
+    }).sort({ timestamp: 1 }).lean();
+
+    // Serialize with an `id` field — the frontend keys reactions and
+    // branching off message.id, which raw _id-only docs don't provide
+    const messages = rawMessages.map((m: any) => ({ ...m, id: m._id.toString() }));
+
+    return NextResponse.json({ conversation, messages });
+  } catch (err) {
+    console.error("GET /api/conversations/[id] error", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  await dbConnect();
-  const { id } = await params;
-  
-  await Conversation.findOneAndDelete({ _id: id, userId: session.user.id });
-  await Message.deleteMany({ conversationId: id, userId: session.user.id });
-  await Branch.deleteMany({ conversationId: id });
-  
-  return NextResponse.json({ success: true });
+    const { id } = await params;
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    await Conversation.findOneAndDelete({ _id: id, userId: session.user.id });
+    await Message.deleteMany({ conversationId: id, userId: session.user.id });
+    await Branch.deleteMany({ conversationId: id });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /api/conversations/[id] error", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -1,4 +1,4 @@
-# MetaWurks Chat UI
+# NexusMind Chat UI
 
 A modern, AI-powered chat application with microservices architecture, featuring multiple AI agents, RAG (Retrieval-Augmented Generation) document search, and real-time conversation management.
 
@@ -39,7 +39,7 @@ A modern, AI-powered chat application with microservices architecture, featuring
 ## 📁 Project Structure
 
 ```
-CHAT_UI-METAWURKS-/
+CHAT_UI-NEXUSMIND-/
 ├── src/                          # Frontend (Next.js)
 │   ├── app/                      # App router pages & API routes
 │   │   ├── api/                  # API endpoints
@@ -79,7 +79,7 @@ CHAT_UI-METAWURKS-/
 │   │   └── uploads/              # Uploaded files storage
 │   └── user-service/             # User management (Node.js)
 ├── public/                       # Static assets
-│   ├── metawurks-logo.svg        # Logo
+│   ├── nexusmind-logo.svg        # Logo
 │   └── uploads/                  # Public file uploads
 ├── .env.local                    # Environment variables
 ├── .env.example                  # Environment template
@@ -129,7 +129,7 @@ CHAT_UI-METAWURKS-/
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
-cd CHAT_UI-METAWURKS-
+cd CHAT_UI-NEXUSMIND-
 ```
 
 ### 2. Install Dependencies
@@ -158,7 +158,7 @@ cd ../user-service && npm install
 **Root `.env.local`:** (Frontend & NextAuth)
 ```env
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 
 # NextAuth Configuration
 NEXTAUTH_URL=http://localhost:3000
@@ -197,7 +197,7 @@ CORS_ORIGIN=http://localhost:3000
 FILE_SERVICE_URL=http://localhost:4003
 
 # MongoDB (optional for agent memory)
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 ```
 
 **File Service `.env`:** (`services/file-service/.env`)
@@ -206,7 +206,7 @@ NODE_ENV=development
 PORT=4003
 
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 
 # JWT Secret (for auth verification)
 JWT_SECRET=your-jwt-secret-key
@@ -229,7 +229,7 @@ NODE_ENV=development
 PORT=4000
 
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 
 # JWT Configuration
 JWT_SECRET=your-jwt-secret-key
@@ -251,7 +251,7 @@ NODE_ENV=development
 PORT=4002
 
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 
 # JWT Secret
 JWT_SECRET=your-jwt-secret-key
@@ -266,7 +266,7 @@ NODE_ENV=development
 PORT=4001
 
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/metawurks
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nexusmind
 
 # JWT Secret
 JWT_SECRET=your-jwt-secret-key

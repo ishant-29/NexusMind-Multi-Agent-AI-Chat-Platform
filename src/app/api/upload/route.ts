@@ -66,6 +66,29 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(bytes);
       await writeFile(filePath, buffer);
 
+      // Also index documents into the RAG store (file service) so the
+      // agent's search_documents tool can find them in later messages.
+      // Fire-and-forget: chat upload must not fail if indexing does.
+      const RAG_TYPES = [
+        "application/pdf",
+        "text/plain",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (RAG_TYPES.includes(file.type)) {
+        const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:4003";
+        const form = new FormData();
+        form.append("document", new Blob([buffer], { type: file.type }), file.name);
+        fetch(`${fileServiceUrl}/api/documents/upload`, {
+          method: "POST",
+          headers: {
+            "x-service-key": process.env.SERVICE_API_KEY || "dev-service-key",
+            "x-user-id": session.user.id,
+          },
+          body: form,
+        }).catch((err) => console.error("RAG indexing failed:", err.message));
+      }
+
       uploadedFiles.push({
         id: uuidv4(),
         name: file.name,

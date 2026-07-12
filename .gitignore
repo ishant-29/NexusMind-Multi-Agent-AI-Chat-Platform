@@ -44,3 +44,22 @@ next-env.d.ts
 # uploads
 /public/uploads/*
 !/public/uploads/.gitkeep
+services/file-service/uploads/documents/*
+!services/file-service/uploads/documents/.gitkeep
+
+# Python cache & virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# Databases & local data
+services/agent-service/data/
+*.db
+*.sqlite
+
+# Nested node_modules (for sub-services)
+**/node_modules/

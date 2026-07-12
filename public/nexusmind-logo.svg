@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+  <g>
+    <g stroke="#67dcf5" stroke-width="1.9" stroke-linecap="round" opacity="0.55">
+      <path d="M20 20 L20 6.25" />
+      <path d="M20 20 L33.1 13.75" />
+      <path d="M20 20 L30 31.25" />
+      <path d="M20 20 L10 31.25" />
+      <path d="M20 20 L6.9 13.75" />
+    </g>
+    <g fill="#67dcf5">
+      <circle cx="20" cy="6.25" r="2.5" opacity="0.9" />
+      <circle cx="33.1" cy="13.75" r="2.1" opacity="0.7" />
+      <circle cx="30" cy="31.25" r="2.1" opacity="0.7" />
+      <circle cx="10" cy="31.25" r="2.1" opacity="0.7" />
+      <circle cx="6.9" cy="13.75" r="2.1" opacity="0.7" />
+    </g>
+    <circle cx="20" cy="20" r="5.5" fill="#67dcf5" />
+    <circle cx="20" cy="20" r="5.5" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="0.95" />
+  </g>
+  <text x="44" y="26.5" font-family="Geist, 'Segoe UI', system-ui, sans-serif" font-size="19" font-weight="600" letter-spacing="-0.4" fill="#eef1f7">NexusMind</text>
+</svg>

@@ -1,7 +1,7 @@
 {
   "name": "conversation-service",
   "version": "1.0.0",
-  "description": "Conversation management microservice for MetaWurks",
+  "description": "Conversation management microservice for NexusMind",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

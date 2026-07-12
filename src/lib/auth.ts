@@ -168,6 +168,9 @@ export const authConfig: NextAuthConfig = {
   },
 
   secret: process.env.NEXTAUTH_SECRET,
+  // Required for self-hosted deployments (next start behind localhost or a
+  // proxy); without it NextAuth v5 rejects every request with UntrustedHost.
+  trustHost: true,
   debug: process.env.NODE_ENV === "development",
 };
 

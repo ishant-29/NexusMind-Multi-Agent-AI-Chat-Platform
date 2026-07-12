@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo ╔══════════════════════════════════════════════════════════════╗
-echo ║           MetaWurks Services Status Check                   ║
+echo ║           NexusMind Services Status Check                   ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
 

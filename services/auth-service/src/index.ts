@@ -37,7 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use(errorHandler);
 
 // Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/metawurks';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nexusmind';
 
 mongoose
   .connect(MONGODB_URI)

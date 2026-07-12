@@ -52,8 +52,10 @@ const DocumentChunkSchema = new Schema<IDocumentChunk>({
   timestamps: true,
 });
 
-// Create vector search index for MongoDB Atlas
-DocumentChunkSchema.index({ embedding: '2dsphere' });
+// NOTE: a 2dsphere index cannot be used on embedding vectors (it is a
+// geospatial index and makes inserts fail with "can't extract geo keys").
+// Vector search on Atlas requires an Atlas Search index created outside
+// Mongoose; similarity is computed in-app (see EmbeddingService.cosineSimilarity).
 DocumentChunkSchema.index({ userId: 1, documentId: 1 });
 
 const DocumentSchema = new Schema<IDocument>({

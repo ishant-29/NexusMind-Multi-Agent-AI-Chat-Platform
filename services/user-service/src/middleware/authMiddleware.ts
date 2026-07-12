@@ -8,7 +8,8 @@ export interface AuthRequest extends Request {
   };
 }
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
+// Read lazily: this module is imported before dotenv.config() runs in index.ts
+const getAuthServiceUrl = () => process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
 
 export const authenticate = async (
   req: AuthRequest,
@@ -25,7 +26,7 @@ export const authenticate = async (
     const token = authHeader.substring(7);
 
     const response = await axios.post(
-      `${AUTH_SERVICE_URL}/api/auth/verify`,
+      `${getAuthServiceUrl()}/api/auth/verify`,
       {},
       {
         headers: {

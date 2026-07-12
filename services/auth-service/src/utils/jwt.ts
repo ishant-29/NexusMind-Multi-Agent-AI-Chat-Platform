@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
+// Read env vars lazily: this module is imported (hoisted) before
+// dotenv.config() runs in index.ts, so reading at module load would
+// always fall back to the default secret.
+const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key';
+const getJwtExpiresIn = () => process.env.JWT_EXPIRES_IN || '30d';
 
 export interface TokenPayload {
   userId: string;
@@ -9,14 +12,14 @@ export interface TokenPayload {
 }
 
 export const generateToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn: getJwtExpiresIn(),
   } as jwt.SignOptions);
 };
 
 export const verifyToken = (token: string): TokenPayload => {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, getJwtSecret()) as TokenPayload;
   } catch (error) {
     throw new Error('Invalid or expired token');
   }

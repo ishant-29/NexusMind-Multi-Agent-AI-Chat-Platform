@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (content.length > 10000) {
+    if (content && content.length > 10000) {
       return new Response(JSON.stringify({ error: "Message too long. Maximum 10,000 characters." }), { 
         status: 400,
         headers: { "Content-Type": "application/json" }
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
           });
         }
       } else {
-        convo = await Conversation.create({ userId, title: content.slice(0, 40) });
+        convo = await Conversation.create({ userId, title: (content || "New Conversation").slice(0, 40) });
       }
     } catch (err: any) {
       console.error("Conversation error:", err);
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       conversationId: convo._id,
       userId,
       branchId,
-      content,
+      content: content || "[Sent with attachment]",
       role: "user",
       importance: Math.random() * 0.5,
       attachments: attachments || [],
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const shouldSearch = useWebSearch !== false && shouldUseWebSearch(content);
+    const shouldSearch = useWebSearch !== false && !!content && shouldUseWebSearch(content);
     if (shouldSearch) {
       try {
         const searchData = await searchWeb(content);
@@ -121,10 +121,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Build enhanced content with attachments and search results
-    let enhancedContent = content;
-    
+    let enhancedContent = content || "";
+
     if (attachmentContext) {
-      enhancedContent = `${attachmentContext}\n\nUser message: ${content}`;
+      enhancedContent = `${attachmentContext}\n\nUser message: ${content || "Please review the attached file(s)."}`;
     }
     
     if (searchContext) {
@@ -184,13 +184,16 @@ export async function POST(req: NextRequest) {
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
+            let buffer = "";
 
             while (true) {
               const { done, value } = await reader!.read();
               if (done) break;
 
-              const chunk = decoder.decode(value);
-              const lines = chunk.split("\n").filter(line => line.trim().startsWith("data: "));
+              buffer += decoder.decode(value, { stream: true });
+              const rawLines = buffer.split("\n");
+              buffer = rawLines.pop() || "";
+              const lines = rawLines.filter(line => line.trim().startsWith("data: "));
 
               for (const line of lines) {
                 const data = line.replace("data: ", "").trim();

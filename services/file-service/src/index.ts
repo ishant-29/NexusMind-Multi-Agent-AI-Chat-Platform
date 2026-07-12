@@ -32,8 +32,16 @@ app.get('/health', (req, res) => {
 app.use('/api/files', fileRoutes);
 app.use('/api/documents', documentRoutes);
 
+// JSON error handler — without this, multer errors (file too large,
+// bad type) fall through to Express's default HTML 500 page
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err.message || err);
+  const status = err.name === 'MulterError' || err.message?.includes('not supported') ? 400 : err.statusCode || 500;
+  res.status(status).json({ success: false, error: err.message || 'Internal server error' });
+});
+
 // Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/metawurks';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nexusmind';
 
 mongoose
   .connect(MONGODB_URI)

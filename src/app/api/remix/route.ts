@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { content } = await req.json();
+
+    if (typeof content !== "string" || !content.trim()) {
+      return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    }
+
     await new Promise((r) => setTimeout(r, 800));
 
     const remixes = [

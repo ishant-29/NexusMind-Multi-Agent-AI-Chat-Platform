@@ -3,120 +3,168 @@
 @plugin "tailwind-scrollbar";
 
 @theme {
-  --color-mw-blue: #3b82f6;
-  --color-mw-blue-dark: #2563eb;
-  --color-mw-blue-light: #93c5fd;
-  --color-mw-navy: #1e3a5f;
-  --color-mw-cyan: #7dd3fc;
-  --color-mw-peach: #fca5a5;
-  --color-mw-lavender: #c4b5fd;
-  --color-surface-default: #f7f8fc;
-  --color-surface-elevated: #ffffff;
-  --color-surface-border: #e2e8f0;
-  
+  /* ── NexusMind command-deck palette (see DESIGN.md) ─────────── */
+  --color-void: oklch(0.13 0.02 260);
+  --color-surface: oklch(0.17 0.022 260);
+  --color-raised: oklch(0.21 0.024 260);
+  --color-overlay: oklch(0.24 0.025 260);
+  --color-ink: oklch(0.96 0.005 260);
+  --color-ink-secondary: oklch(0.78 0.015 260);
+  --color-ink-faint: oklch(0.62 0.02 260);
+  --color-accent: oklch(0.82 0.13 205);
+  --color-accent-strong: oklch(0.88 0.12 200);
+  --color-accent-ink: oklch(0.15 0.03 250);
+  --color-danger: oklch(0.68 0.19 20);
+  --color-success: oklch(0.76 0.14 160);
+  --color-warning: oklch(0.8 0.13 85);
+
   --font-display: var(--font-geist-sans);
   --font-body: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --animate-aurora-shift: aurora 8s ease infinite;
-  --animate-typing-dot: typingDot 1.4s ease-in-out infinite;
-  --animate-message-in: messageIn 0.3s ease forwards;
-  --animate-fade-up: fadeUp 0.4s ease forwards;
-  --animate-float: float 6s ease-in-out infinite;
-  --animate-float-delayed: float 6s ease-in-out 2s infinite;
-  --animate-float-slow: float 8s ease-in-out 1s infinite;
-  --animate-pulse-border: pulseBorder 2s ease-in-out infinite;
+  --animate-typing-dot: typingDot 1.2s ease-in-out infinite;
+  --animate-fade-up: fadeUp 0.5s var(--ease-out-strong) forwards;
+  --animate-shimmer: shimmer 2.2s linear infinite;
 
-  @keyframes aurora {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
   @keyframes typingDot {
-    0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
-    40% { transform: scale(1.2); opacity: 1; }
-  }
-  @keyframes messageIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    0%, 80%, 100% { transform: scale(0.75); opacity: 0.35; }
+    40% { transform: scale(1.1); opacity: 1; }
   }
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
-  }
-  @keyframes pulseBorder {
-    0%, 100% { 
-      border-color: rgba(248, 113, 113, 0.5);
-      box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4);
-    }
-    50% { 
-      border-color: rgba(248, 113, 113, 1);
-      box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
-    }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
   }
 }
 
 @layer base {
   :root {
-    --background: #f7f8fc;
-    --foreground: #0f172a;
-    --bg-primary: #f7f8fc;
-    --bg-elevated: #ffffff;
-    --bg-border: #e2e8f0;
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
-    --accent-blue: #3b82f6;
-    --accent-blue-dark: #2563eb;
-    --user-bubble: #3b82f6;
-    --bot-bubble: #ffffff;
-    --transition-speed: 300ms;
+    /* semantic aliases used across components */
+    --background: oklch(0.13 0.02 260);
+    --foreground: oklch(0.96 0.005 260);
+    --bg-primary: oklch(0.13 0.02 260);
+    --bg-elevated: oklch(0.21 0.024 260);
+    --bg-border: oklch(1 0 0 / 0.08);
+    --border-subtle: oklch(1 0 0 / 0.08);
+    --border-strong: oklch(1 0 0 / 0.16);
+    --text-primary: oklch(0.96 0.005 260);
+    --text-secondary: oklch(0.78 0.015 260);
+    --accent: oklch(0.82 0.13 205);
+    --accent-strong: oklch(0.88 0.12 200);
+    --accent-ink: oklch(0.15 0.03 250);
+
+    /* motion */
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+
+    /* semantic z-scale */
+    --z-dropdown: 30;
+    --z-sticky: 40;
+    --z-backdrop: 50;
+    --z-modal: 60;
+    --z-toast: 70;
+    --z-tooltip: 80;
+
+    color-scheme: dark;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: var(--font-body), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: oklch(0.82 0.13 205 / 0.3);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+/* ── Reusable primitives ─────────────────────────────────────── */
+
+/* Glass: reserved for composer, modals, floating menus (DESIGN.md) */
+.nx-glass {
+  background: oklch(0.21 0.024 260 / 0.72);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.06),
+    0 16px 48px oklch(0.1 0.02 260 / 0.55);
 }
 
-/* Hide default cursor on pages with custom cursor */
-body:has([data-auth-page]) {
-  cursor: none !important;
+@media (prefers-reduced-transparency: reduce) {
+  .nx-glass {
+    background: oklch(0.21 0.024 260);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
-body:has([data-auth-page]) * {
-  cursor: none !important;
+/* Pressable: instant physical feedback on any button-like element */
+.nx-press {
+  transition: transform 120ms var(--ease-out-strong);
+}
+.nx-press:active {
+  transform: scale(0.97);
 }
 
-/* Custom Scrollbar */
+/* Live glow: signals "the system is active"; never on idle elements */
+.nx-live {
+  box-shadow: 0 0 0 1px oklch(0.82 0.13 205 / 0.35), 0 0 24px oklch(0.82 0.13 205 / 0.18);
+}
+
+/* Skeleton shimmer for loading rows */
+.nx-skeleton {
+  background: linear-gradient(
+    100deg,
+    oklch(0.21 0.024 260) 40%,
+    oklch(0.26 0.025 260) 50%,
+    oklch(0.21 0.024 260) 60%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 10px;
+}
+
+/* ── Scrollbar (thin, surface-tinted) ────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.4);
+  background-color: oklch(1 0 0 / 0.12);
   border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.6);
+  background-color: oklch(1 0 0 / 0.22);
 }
 
-/* Markdown content inside chat bubbles */
+/* ── Markdown content inside chat bubbles ────────────────────── */
 .markdown-content {
-  line-height: 1.6;
+  line-height: 1.65;
+  overflow-wrap: break-word;
 }
 
 .markdown-content strong {
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .markdown-content em {
@@ -124,36 +172,32 @@ body:has([data-auth-page]) * {
 }
 
 .markdown-content code {
-  background: rgba(0, 0, 0, 0.06);
-  padding: 1px 5px;
-  border-radius: 4px;
+  background: oklch(1 0 0 / 0.08);
+  border: 1px solid oklch(1 0 0 / 0.06);
+  padding: 1px 6px;
+  border-radius: 6px;
   font-family: var(--font-mono), monospace;
-  font-size: 0.9em;
+  font-size: 0.88em;
+}
+
+/* user bubbles are accent-filled with dark ink: keep code readable there */
+.markdown-content[data-on-accent] code {
+  background: oklch(0 0 0 / 0.12);
+  border-color: oklch(0 0 0 / 0.08);
 }
 
 .markdown-content ul,
 .markdown-content ol {
   margin: 8px 0;
-  padding-left: 24px;
+  padding-left: 22px;
 }
-
-.markdown-content ul {
-  list-style-type: disc;
-}
-
-.markdown-content ol {
-  list-style-type: decimal;
-}
-
+.markdown-content ul { list-style-type: disc; }
+.markdown-content ol { list-style-type: decimal; }
 .markdown-content li {
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   line-height: 1.6;
 }
-
-.markdown-content p {
-  margin: 8px 0;
-}
-
+.markdown-content p { margin: 8px 0; }
 .markdown-content br {
   display: block;
   content: "";
@@ -161,12 +205,28 @@ body:has([data-auth-page]) * {
 }
 
 .markdown-content a {
-  color: #3b82f6;
+  color: var(--accent);
   text-decoration: underline;
-  transition: color 0.2s;
+  text-underline-offset: 3px;
+  transition: color 150ms var(--ease-out-strong);
   word-break: break-word;
 }
-
 .markdown-content a:hover {
-  color: #2563eb;
+  color: var(--accent-strong);
+}
+.markdown-content[data-on-accent] a {
+  color: var(--accent-ink);
+  text-decoration-color: oklch(0.15 0.03 250 / 0.5);
+}
+
+/* ── Reduced motion: freeze decoration, keep state feedback ──── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

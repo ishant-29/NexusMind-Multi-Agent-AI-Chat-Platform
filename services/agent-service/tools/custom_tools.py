@@ -1,10 +1,10 @@
 """
-Custom Tools for MetaWurks Agents
+Custom Tools for NexusMind Agents
 Additional capabilities beyond built-in Agno tools
 """
 
 from agno.tools import Toolkit
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import json
 import re
 
@@ -57,7 +57,7 @@ class TextAnalysisTools(Toolkit):
         
         return [word for word, freq in sorted_words[:top_n]]
     
-    def sentiment_analysis(self, text: str) -> Dict[str, any]:
+    def sentiment_analysis(self, text: str) -> Dict[str, Any]:
         """Simple sentiment analysis based on keyword matching"""
         positive_words = {'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 
                          'love', 'best', 'happy', 'joy', 'perfect', 'awesome', 'brilliant'}
@@ -86,7 +86,7 @@ class TextAnalysisTools(Toolkit):
             "negative_words": negative_count
         }
     
-    def readability_score(self, text: str) -> Dict[str, any]:
+    def readability_score(self, text: str) -> Dict[str, Any]:
         """Calculate simple readability metrics"""
         words = text.split()
         sentences = re.split(r'[.!?]+', text)
@@ -148,7 +148,7 @@ class DataFormattingTools(Toolkit):
         
         return "\n".join([header, separator] + rows)
     
-    def format_as_json(self, data: any, indent: int = 2) -> str:
+    def format_as_json(self, data: Any, indent: int = 2) -> str:
         """Format data as pretty JSON"""
         return json.dumps(data, indent=indent, ensure_ascii=False)
     

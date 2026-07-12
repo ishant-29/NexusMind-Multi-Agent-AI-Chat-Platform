@@ -5,7 +5,9 @@ export default async function ExistingChatPage({ params }: { params: Promise<{ i
   const resolvedParams = await params;
   return (
     <ErrorBoundary>
-      <ChatWindow conversationId={resolvedParams.id} />
+      {/* key remounts ChatWindow per conversation so switching in the
+          sidebar reloads messages instead of showing the previous thread */}
+      <ChatWindow key={resolvedParams.id} conversationId={resolvedParams.id} />
     </ErrorBoundary>
   );
 }

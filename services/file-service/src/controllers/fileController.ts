@@ -116,8 +116,13 @@ export const deleteFile = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // Delete file from disk
-    await fs.unlink(fileRecord.path);
+    // Delete file from disk; a missing physical file must not leave an
+    // undeletable orphan record behind
+    try {
+      await fs.unlink(fileRecord.path);
+    } catch (unlinkErr: any) {
+      console.error('File unlink failed (continuing with DB delete):', unlinkErr.message);
+    }
 
     // Delete record from database
     await File.deleteOne({ _id: fileRecord._id });

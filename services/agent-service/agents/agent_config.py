@@ -1,12 +1,27 @@
 """
-Agent Configuration for MetaWurks Chat UI
+Agent Configuration for NexusMind Chat UI
 Defines all available AI agents with their capabilities
 """
 
 from agno.agent import Agent
+from agno.db.sqlite import SqliteDb
 from agno.tools.tavily import TavilyTools
 from tools.rag_tool import RAGTools
 import os
+
+# Shared session store. Without a db, add_history_to_context is a silent
+# no-op and agents forget everything between turns.
+_session_db = None
+
+def get_session_db() -> SqliteDb:
+    global _session_db
+    if _session_db is None:
+        db_path = os.getenv("AGNO_DB_PATH", "./data/agno.db")
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+        _session_db = SqliteDb(db_file=db_path)
+    return _session_db
 
 # Agent configurations dictionary
 AGENT_CONFIGS = {
@@ -112,42 +127,62 @@ AGENT_CONFIGS = {
 }
 
 
-def create_agent(agent_type: str, use_web_search: bool = False, use_rag: bool = True, user_id: str = None) -> Agent:
+# Free OpenRouter model used when Groq hits its rate limit. Chosen for
+# reliable free-tier availability and working tool calls.
+FALLBACK_MODEL_ID = os.getenv("FALLBACK_MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
+
+
+def create_agent(agent_type: str, use_web_search: bool = False, use_rag: bool = True, user_id: str = None, use_fallback_model: bool = False) -> Agent:
     """
     Create an agent based on type
-    
+
     Args:
         agent_type: The type of agent to create
-        use_web_search: Whether to enable web search tools (only for research agent)
+        use_web_search: Whether to enable web search tools
         use_rag: Whether to enable RAG tools for document search
         user_id: User ID for RAG tools
+        use_fallback_model: Use the OpenRouter fallback model instead of Groq
+            (for when Groq is rate-limited)
     """
     if agent_type not in AGENT_CONFIGS:
         raise ValueError(f"Unknown agent type: {agent_type}")
-    
+
     config = AGENT_CONFIGS[agent_type].copy()
+
+    if use_fallback_model:
+        from agno.models.openrouter import OpenRouter
+        config["model"] = OpenRouter(id=FALLBACK_MODEL_ID)
+
     tools = []
     
-    # Add Tavily tools only for research agent when web search is enabled
-    if agent_type == "research" and use_web_search:
+    # Add Tavily tools for any agent when web search is enabled
+    if use_web_search:
         tavily_api_key = os.getenv("TAVILY_API_KEY")
         if tavily_api_key:
             tools.append(TavilyTools(api_key=tavily_api_key))
         else:
             print("⚠️  Warning: TAVILY_API_KEY not found, web search disabled")
     
-    # Add RAG tools if enabled (for all agents)
-    if use_rag:
+    # Add RAG tools if enabled — only with a real user_id; the file service
+    # rejects requests with an empty x-user-id header
+    if use_rag and user_id:
         tools.append(RAGTools(user_id=user_id))
-    
+
     config["tools"] = tools
-    
+
+    # Persist session history so multi-turn context works
+    config["db"] = get_session_db()
+    # Agentic memory needs extra LLM round-trips per run and adds latency
+    # and tool-call flakiness on Groq; session history already provides
+    # multi-turn context
+    config["enable_agentic_memory"] = False
+
     return Agent(**config)
 
 
 def get_all_agents() -> list[Agent]:
-    """Get all configured agents (without web search tools)"""
-    return [create_agent(agent_type, use_web_search=False) for agent_type in AGENT_CONFIGS.keys()]
+    """Get all configured agents (without web search or user-scoped RAG tools)"""
+    return [create_agent(agent_type, use_web_search=False, use_rag=False) for agent_type in AGENT_CONFIGS.keys()]
 
 
 def get_agent_list() -> list[dict]:
@@ -161,7 +196,9 @@ def get_agent_list() -> list[dict]:
             "name": config["name"],
             "description": config["description"],
             "model": config["model"],
-            "has_tools": len(config["tools"]) > 0,
+            # Tools are attached at request time (RAG always, web search
+            # optionally), so every agent effectively has tools
+            "has_tools": True,
         }
         for agent_type, config in AGENT_CONFIGS.items()
         if agent_type != "general"  # Hide general agent from selector

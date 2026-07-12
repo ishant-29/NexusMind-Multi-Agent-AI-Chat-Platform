@@ -32,8 +32,14 @@ app.get('/health', (req, res) => {
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
 
+// JSON error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err.message || err);
+  res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Internal server error' });
+});
+
 // Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/metawurks';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nexusmind';
 
 mongoose
   .connect(MONGODB_URI)

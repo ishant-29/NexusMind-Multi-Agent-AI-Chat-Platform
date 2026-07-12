@@ -1,78 +1,84 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import dbConnect from "@/lib/mongodb";
+import { Message } from "@/models/Message";
+import { Conversation } from "@/models/Conversation";
+import { processAttachments } from "@/lib/utils/fileProcessor";
 
 const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:7777';
-const CONVERSATION_SERVICE_URL = process.env.CONVERSATION_SERVICE_URL || 'http://localhost:4002';
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" }
       });
     }
 
     const userId = session.user.id;
-    const { content, conversationId, agentName = "General Assistant", attachments, useWebSearch = false } = await req.json();
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return new Response(JSON.stringify({ error: "Invalid session. Please log out and log back in." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const { content, conversationId, branchId = "main", agentName = "General Assistant", attachments, useWebSearch = false } = await req.json();
 
     if (!content?.trim() && (!attachments || attachments.length === 0)) {
-      return new Response(JSON.stringify({ error: "Message content is required" }), { 
+      return new Response(JSON.stringify({ error: "Message content is required" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // Get auth token from request
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    await dbConnect();
 
-    // Create or get conversation
-    let convoId = conversationId;
-    if (!convoId) {
-      const convoResponse = await fetch(`${CONVERSATION_SERVICE_URL}/api/conversations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ title: content.slice(0, 40) }),
-      });
-
-      if (!convoResponse.ok) {
-        throw new Error('Failed to create conversation');
+    // Create or load the conversation with the session user's identity.
+    // Persistence happens here (same Mongo the rest of the app uses) rather
+    // than through the conversation service, which requires a service JWT
+    // the browser session cannot provide.
+    let convo;
+    if (conversationId) {
+      if (!/^[0-9a-fA-F]{24}$/.test(conversationId)) {
+        return new Response(JSON.stringify({ error: "Invalid conversation ID" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
       }
-
-      const convoData = await convoResponse.json();
-      convoId = convoData.data._id;
+      convo = await Conversation.findOne({ _id: conversationId, userId });
+      if (!convo) {
+        return new Response(JSON.stringify({ error: "Conversation not found or access denied" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    } else {
+      convo = await Conversation.create({ userId, title: (content || "New Conversation").slice(0, 40) });
     }
 
-    // Save user message to conversation service
-    await fetch(`${CONVERSATION_SERVICE_URL}/api/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        conversationId: convoId,
-        content,
-        role: 'user',
-        attachments: attachments || [],
-      }),
+    await Message.create({
+      conversationId: convo._id,
+      userId,
+      branchId,
+      content: content || "[Sent with attachment]",
+      role: "user",
+      attachments: attachments || [],
     });
 
-    // Build enhanced content with attachments
-    let enhancedContent = content;
+    // Build enhanced content with attachments: extract text from the
+    // uploaded files on disk (upload API returns only metadata, not content)
+    let enhancedContent = content || "";
     if (attachments && attachments.length > 0) {
-      const attachmentContext = attachments
-        .map((att: any) => att.textContent)
-        .filter(Boolean)
-        .join('\n\n');
-      
-      if (attachmentContext) {
-        enhancedContent = `${attachmentContext}\n\nUser message: ${content}`;
+      try {
+        const { textContent } = await processAttachments(attachments);
+        if (textContent) {
+          enhancedContent = `${textContent}\n\nUser message: ${content || "Please review the attached file(s)."}`;
+        }
+      } catch (err) {
+        console.error("Attachment processing error:", err);
       }
     }
 
@@ -85,7 +91,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         name: agentName,
         message: enhancedContent,
-        session_id: convoId,
+        session_id: convo._id.toString(),
         user_id: userId,
         stream: true,
         use_web_search: useWebSearch,
@@ -109,12 +115,16 @@ export async function POST(req: NextRequest) {
             throw new Error('No response body');
           }
 
+          let buffer = "";
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n").filter(line => line.trim().startsWith("data: "));
+            buffer += decoder.decode(value, { stream: true });
+            const rawLines = buffer.split("\n");
+            buffer = rawLines.pop() || "";
+            const lines = rawLines.filter(line => line.trim().startsWith("data: "));
 
             for (const line of lines) {
               const data = line.replace("data: ", "").trim();
@@ -124,23 +134,21 @@ export async function POST(req: NextRequest) {
               try {
                 const parsed = JSON.parse(data);
                 const text = parsed.content || parsed.delta?.content || "";
-                
+
                 if (text) {
                   fullResponse += text;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
                 }
 
-                // Handle tool calls
                 if (parsed.tool_calls) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                    tools: parsed.tool_calls 
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                    tools: parsed.tool_calls
                   })}\n\n`));
                 }
 
-                // Handle reasoning
                 if (parsed.reasoning) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                    reasoning: parsed.reasoning 
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                    reasoning: parsed.reasoning
                   })}\n\n`));
                 }
               } catch (e) {
@@ -149,26 +157,27 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Save assistant message
-          const saveResponse = await fetch(`${CONVERSATION_SERVICE_URL}/api/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              conversationId: convoId,
-              content: fullResponse,
-              role: 'assistant',
-            }),
-          });
+          let savedMessageId: string | undefined;
+          if (fullResponse) {
+            try {
+              const botMessage = await Message.create({
+                conversationId: convo._id,
+                userId,
+                branchId,
+                content: fullResponse,
+                role: "assistant",
+              });
+              savedMessageId = botMessage._id.toString();
+            } catch (err) {
+              console.error("Failed to save assistant message:", err);
+            }
+          }
 
-          const savedMessage = await saveResponse.json();
-
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-            done: true, 
-            messageId: savedMessage.data._id,
-            conversationId: convoId,
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            done: true,
+            messageId: savedMessageId,
+            conversationId: convo._id.toString(),
+            usedWebSearch: useWebSearch,
           })}\n\n`));
 
           controller.close();
@@ -189,7 +198,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Chat agent error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), { 
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });

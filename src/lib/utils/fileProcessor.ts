@@ -11,9 +11,14 @@ export async function extractTextFromFile(
 
     // Extract text based on file type
     if (fileType === "application/pdf") {
-      const pdfParse = require("pdf-parse");
-      const data = await pdfParse(buffer);
-      return data.text;
+      // pdf-parse v2 exposes a class API (v1's pdfParse(buffer) is gone)
+      const { PDFParse } = require("pdf-parse");
+      const parser = new PDFParse({ data: new Uint8Array(buffer) });
+      const result = await parser.getText();
+      // Scanned/image-only PDFs yield just "-- N of M --" page markers;
+      // treat that as no text so the caller can say so explicitly
+      const meaningful = result.text.replace(/--\s*\d+\s*of\s*\d+\s*--/g, "").trim();
+      return meaningful.length > 0 ? result.text : null;
     } else if (fileType === "text/plain") {
       return buffer.toString("utf-8");
     } else if (
@@ -44,7 +49,8 @@ export async function processAttachments(
   const processedFiles: string[] = [];
 
   for (const attachment of attachments) {
-    const { name, type, url } = attachment;
+    const { name, url } = attachment;
+    const type: string = attachment.type || "";
 
     // For videos, just mention them
     if (type.startsWith("video/")) {
@@ -64,7 +70,9 @@ export async function processAttachments(
           `[Document: ${name}]\nContent:\n${text.substring(0, 10000)}\n[End of ${name}]`
         );
       } else {
-        processedFiles.push(`[Document: ${name} - Unable to extract text]`);
+        processedFiles.push(
+          `[Document: ${name} - No readable text found. This is likely a scanned or image-based file whose contents cannot be read without OCR. Tell the user this plainly and ask for a text-based version.]`
+        );
       }
     }
   }

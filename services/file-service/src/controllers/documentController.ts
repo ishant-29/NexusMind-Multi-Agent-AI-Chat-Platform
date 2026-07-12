@@ -46,7 +46,10 @@ export const uploadDocument = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const userId = (req as any).user?.id || 'anonymous';
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     // Create document record
     const document = await Document.create({
@@ -90,7 +93,10 @@ export const uploadDocument = async (req: Request, res: Response) => {
  */
 export const getUserDocuments = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id || 'anonymous';
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const documents = await Document.find({ userId })
       .sort({ createdAt: -1 })
@@ -113,7 +119,10 @@ export const getUserDocuments = async (req: Request, res: Response) => {
 export const getDocument = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.id || 'anonymous';
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const document = await Document.findOne({ _id: id, userId })
       .select('-filePath')
@@ -139,7 +148,10 @@ export const getDocument = async (req: Request, res: Response) => {
 export const deleteDocument = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.id || 'anonymous';
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     await DocumentProcessor.deleteDocument(id, userId);
 
@@ -158,8 +170,11 @@ export const deleteDocument = async (req: Request, res: Response) => {
  */
 export const searchDocuments = async (req: Request, res: Response) => {
   try {
-    const { query, documentIds, limit = 5, minScore = 0.7 } = req.body;
-    const userId = (req as any).user?.id || 'anonymous';
+    const { query, documentIds, limit = 5, minScore = 0.3 } = req.body;
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
@@ -191,7 +206,10 @@ export const searchDocuments = async (req: Request, res: Response) => {
 export const getDocumentChunks = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.id || 'anonymous';
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const chunks = await DocumentChunk.find({ documentId: id, userId })
       .select('-embedding') // Don't send embeddings to client

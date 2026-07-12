@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo Starting MetaWurks Microservices
+echo Starting NexusMind Microservices
 echo ========================================
 echo.
 
@@ -21,7 +21,7 @@ start "File Service" cmd /k "cd services\file-service && npm run dev"
 timeout /t 2 /nobreak >nul
 
 echo Starting Agent Service (Port 7777)...
-start "Agent Service" cmd /k "cd services\agent-service && python main.py"
+start "Agent Service" cmd /k "cd services\agent-service && set PYTHONUTF8=1 && python main.py"
 timeout /t 2 /nobreak >nul
 
 echo.

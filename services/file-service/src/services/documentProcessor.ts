@@ -167,7 +167,9 @@ export class DocumentProcessor {
     score: number;
     chunkIndex: number;
   }>> {
-    const { limit = 5, documentIds, minScore = 0.7 } = options;
+    // Default threshold tuned for the Nemotron embedding model, whose cosine
+    // scores run lower than OpenAI's (relevant matches land around 0.35-0.55)
+    const { limit = 5, documentIds, minScore = 0.3 } = options;
 
     // Generate embedding for query
     const queryEmbedding = await EmbeddingService.generateEmbedding(query);

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const { targetMessageId } = body;
 
-    if (!targetMessageId) {
+    if (!targetMessageId || !mongoose.Types.ObjectId.isValid(targetMessageId)) {
       return NextResponse.json({ error: "Target messageId is required" }, { status: 400 });
     }
 
@@ -26,15 +26,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Parent conversation not found" }, { status: 404 });
     }
 
-    // Try finding by Mongoose Object ID if it matches, otherwise string ID
-    const targetQuery = mongoose.Types.ObjectId.isValid(targetMessageId) 
-        ? { _id: targetMessageId } 
-        : { id: targetMessageId };
-        
-    const targetMessage = await Message.findOne({ 
-      ...targetQuery, 
+    const targetMessage = await Message.findOne({
+      _id: targetMessageId,
       conversationId: id,
-      userId: session.user.id 
+      userId: session.user.id
     });
     
     if (!targetMessage) {

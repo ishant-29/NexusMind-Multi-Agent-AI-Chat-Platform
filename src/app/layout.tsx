@@ -14,14 +14,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MetaWurks — All-in-One AI Hub for Business",
-  description: "AI-powered workflow orchestration. GPT-5, Claude, Gemini, DeepSeek, Grok and more.",
+  title: "NexusMind — Multi-Agent AI Workspace",
+  description: "Research, code, write, and analyze with specialist AI agents grounded in your own documents.",
+};
+
+export const viewport = {
+  themeColor: "#0d1017",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}>
-      <body className="h-full bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      <body className="h-full bg-void text-ink">
         <SessionProvider>
           {children}
         </SessionProvider>

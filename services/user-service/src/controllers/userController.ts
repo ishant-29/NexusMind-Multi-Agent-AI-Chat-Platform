@@ -3,7 +3,8 @@ import { UserSettings } from '../models/UserSettings';
 import { AuthRequest } from '../middleware/authMiddleware';
 import axios from 'axios';
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
+// Read lazily: this module is imported before dotenv.config() runs in index.ts
+const getAuthServiceUrl = () => process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -11,7 +12,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     const token = req.headers.authorization;
 
     // Get user info from auth service
-    const response = await axios.get(`${AUTH_SERVICE_URL}/api/auth/me`, {
+    const response = await axios.get(`${getAuthServiceUrl()}/api/auth/me`, {
       headers: { Authorization: token },
     });
 

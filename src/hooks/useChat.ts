@@ -54,13 +54,17 @@ export function useChat(initialConversationId?: string) {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader!.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter(line => line.trim().startsWith("data: "));
+        buffer += decoder.decode(value, { stream: true });
+        const rawLines = buffer.split("\n");
+        // Keep the last (possibly incomplete) line in the buffer
+        buffer = rawLines.pop() || "";
+        const lines = rawLines.filter(line => line.trim().startsWith("data: "));
 
         for (const line of lines) {
           const data = line.replace("data: ", "").trim();
@@ -96,16 +100,16 @@ export function useChat(initialConversationId?: string) {
               setMessages((prev) => 
                 prev.map((m) => 
                   m.id === assistantMessageId 
-                    ? { 
-                        ...m, 
-                        id: parsed.messageId,
+                    ? {
+                        ...m,
+                        id: parsed.messageId || m.id,
                         sources: parsed.sources,
-                        usedWebSearch: parsed.usedWebSearch 
+                        usedWebSearch: parsed.usedWebSearch
                       }
                     : m
                 )
               );
-              setActiveConvoId(parsed.conversationId);
+              if (parsed.conversationId) setActiveConvoId(parsed.conversationId);
             }
 
             if (parsed.error) {

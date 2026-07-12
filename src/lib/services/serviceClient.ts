@@ -3,11 +3,13 @@
  * Centralized API calls to all backend services
  */
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:4001';
-const CONVERSATION_SERVICE_URL = process.env.CONVERSATION_SERVICE_URL || 'http://localhost:4002';
-const FILE_SERVICE_URL = process.env.FILE_SERVICE_URL || 'http://localhost:4003';
-const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:7777';
+// NEXT_PUBLIC_ variants are inlined into the client bundle; the plain ones
+// only exist server-side. Both are checked so this module works in either.
+const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://localhost:4000';
+const USER_SERVICE_URL = process.env.NEXT_PUBLIC_USER_SERVICE_URL || process.env.USER_SERVICE_URL || 'http://localhost:4001';
+const CONVERSATION_SERVICE_URL = process.env.NEXT_PUBLIC_CONVERSATION_SERVICE_URL || process.env.CONVERSATION_SERVICE_URL || 'http://localhost:4002';
+const FILE_SERVICE_URL = process.env.NEXT_PUBLIC_FILE_SERVICE_URL || process.env.FILE_SERVICE_URL || 'http://localhost:4003';
+const AGENT_SERVICE_URL = process.env.NEXT_PUBLIC_AGENT_SERVICE_URL || process.env.AGENT_SERVICE_URL || 'http://localhost:7777';
 
 interface RequestOptions {
   method?: string;

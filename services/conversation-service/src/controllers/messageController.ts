@@ -42,6 +42,7 @@ export const createMessage = async (req: AuthRequest, res: Response) => {
 
 export const addReaction = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user?.userId;
     const { id } = req.params;
     const { reaction } = req.body;
 
@@ -49,7 +50,7 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Reaction is required' });
     }
 
-    const message = await Message.findById(id);
+    const message = await Message.findOne({ _id: id, userId });
     if (!message) {
       return res.status(404).json({ error: 'Message not found' });
     }
@@ -73,6 +74,7 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
 export const remixMessage = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user?.userId;
     const { id } = req.params;
     const { style, content } = req.body;
 
@@ -80,7 +82,7 @@ export const remixMessage = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Style and content are required' });
     }
 
-    const message = await Message.findById(id);
+    const message = await Message.findOne({ _id: id, userId });
     if (!message) {
       return res.status(404).json({ error: 'Message not found' });
     }

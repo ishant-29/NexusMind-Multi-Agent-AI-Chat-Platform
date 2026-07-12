@@ -1,0 +1,12 @@
+{
+  "name": "gateway-service",
+  "version": "1.0.0",
+  "description": "API Gateway for routing requests to NexusMind microservices",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

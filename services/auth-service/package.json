@@ -1,7 +1,7 @@
 {
   "name": "auth-service",
   "version": "1.0.0",
-  "description": "Authentication microservice for MetaWurks",
+  "description": "Authentication microservice for NexusMind",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

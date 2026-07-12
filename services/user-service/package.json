@@ -1,7 +1,7 @@
 {
   "name": "user-service",
   "version": "1.0.0",
-  "description": "User management microservice for MetaWurks",
+  "description": "User management microservice for NexusMind",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

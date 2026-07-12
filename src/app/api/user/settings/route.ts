@@ -75,23 +75,34 @@ export async function PATCH(req: NextRequest) {
     }
 
     await dbConnect();
+
+    // Only update fields that were actually provided so a partial
+    // PATCH doesn't wipe the user's other settings
+    const provided = {
+      theme,
+      language,
+      defaultModel,
+      webSearchEnabled,
+      emailNotifications,
+      browserNotifications,
+      soundEnabled,
+      saveHistory,
+      analytics,
+    };
+    const updates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(provided)) {
+      if (value !== undefined) {
+        updates[`settings.${key}`] = value;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No settings provided" }, { status: 400 });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       session.user.id,
-      {
-        $set: {
-          settings: {
-            theme,
-            language,
-            defaultModel,
-            webSearchEnabled,
-            emailNotifications,
-            browserNotifications,
-            soundEnabled,
-            saveHistory,
-            analytics,
-          },
-        },
-      },
+      { $set: updates },
       { new: true }
     ).select("settings");
 

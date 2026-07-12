@@ -16,34 +16,41 @@ class RAGTools(Toolkit):
     """
     RAG Tools for searching user documents
     """
-    
+
     def __init__(self, user_id: str = None):
         super().__init__(name="rag_tools")
         self.user_id = user_id
-        
+
         self.register(self.search_documents)
         self.register(self.list_documents)
         self.register(self.get_document_info)
+
+    def _service_headers(self) -> Dict[str, str]:
+        """Internal service-to-service auth headers expected by the file service."""
+        return {
+            "Content-Type": "application/json",
+            "x-service-key": os.getenv("SERVICE_API_KEY", "dev-service-key"),
+            "x-user-id": self.user_id or "",
+        }
     
     def search_documents(
         self,
         query: str,
-        document_ids: Optional[List[str]] = None,
         limit: int = 5,
-        min_score: float = 0.7
+        min_score: float = 0.3
     ) -> str:
         """
         Search through user's uploaded documents for relevant information.
-        
+
         Use this tool when the user asks about content from their uploaded documents,
         or when you need to retrieve specific information from their knowledge base.
-        
+        Searches across all of the user's documents.
+
         Args:
             query: The search query or question
-            document_ids: Optional list of specific document IDs to search (if None, searches all)
             limit: Maximum number of results to return (default: 5)
-            min_score: Minimum similarity score threshold (0-1, default: 0.7)
-        
+            min_score: Minimum similarity score threshold (0-1, default: 0.3)
+
         Returns:
             Relevant document excerpts with context
         """
@@ -52,11 +59,10 @@ class RAGTools(Toolkit):
                 f"{FILE_SERVICE_URL}/api/documents/search",
                 json={
                     "query": query,
-                    "documentIds": document_ids,
                     "limit": limit,
                     "minScore": min_score,
                 },
-                headers={"Content-Type": "application/json"},
+                headers=self._service_headers(),
                 timeout=30,
             )
             
@@ -97,6 +103,7 @@ class RAGTools(Toolkit):
         try:
             response = requests.get(
                 f"{FILE_SERVICE_URL}/api/documents",
+                headers=self._service_headers(),
                 timeout=10,
             )
             
@@ -146,6 +153,7 @@ class RAGTools(Toolkit):
         try:
             response = requests.get(
                 f"{FILE_SERVICE_URL}/api/documents/{document_id}",
+                headers=self._service_headers(),
                 timeout=10,
             )
             
