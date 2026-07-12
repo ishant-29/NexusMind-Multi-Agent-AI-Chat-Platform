@@ -9,11 +9,11 @@ const proxy = httpProxy.createProxyServer({
 
 // Map prefix paths to local service ports
 const targets = {
-  '/auth': 'http://localhost:4000',
-  '/user': 'http://localhost:4001',
-  '/conversation': 'http://localhost:4002',
-  '/file': 'http://localhost:4003',
-  '/agent': 'http://localhost:7777',
+  '/auth': 'http://127.0.0.1:4000',
+  '/user': 'http://127.0.0.1:4001',
+  '/conversation': 'http://127.0.0.1:4002',
+  '/file': 'http://127.0.0.1:4003',
+  '/agent': 'http://127.0.0.1:7777',
 };
 
 const server = http.createServer((req, res) => {
