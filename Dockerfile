@@ -51,7 +51,7 @@ RUN cd services/file-service && npm run build
 
 # --- 6. Install Python Agent Service ---
 COPY services/agent-service/requirements.txt ./services/agent-service/
-RUN pip install --no-cache-dir -r services/agent-service/requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r services/agent-service/requirements.txt
 
 COPY services/agent-service ./services/agent-service
 
