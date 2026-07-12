@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { uploadFile, getFile, downloadFile, deleteFile, listFiles } from '../controllers/fileController';
-import { authenticate } from '../middleware/authMiddleware';
+import { authenticateUserOrService } from '../middleware/serviceAuth';
 import { upload } from '../utils/multerConfig';
 
 const router = Router();
 
-// All routes require authentication
-router.use(authenticate);
+// All routes require authentication (either end-user token or service-to-service key)
+router.use(authenticateUserOrService);
 
 router.post('/upload', upload.single('file'), uploadFile);
 router.get('/', listFiles);

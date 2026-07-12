@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -48,23 +46,37 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Generate unique filename
-      const fileExtension = file.name.split(".").pop();
-      const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-      const uploadDir = join(process.cwd(), "public", "uploads");
-      const filePath = join(uploadDir, uniqueFilename);
-
-      // Ensure upload directory exists
-      try {
-        await mkdir(uploadDir, { recursive: true });
-      } catch (err) {
-        // Directory might already exist
-      }
-
-      // Convert file to buffer and save
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
+
+      const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:4003";
+      const serviceApiKey = process.env.SERVICE_API_KEY || "dev-service-key";
+
+      // Upload file to File Service for storage
+      const uploadForm = new FormData();
+      uploadForm.append("file", new Blob([buffer], { type: file.type }), file.name);
+
+      const uploadResponse = await fetch(`${fileServiceUrl}/api/files/upload`, {
+        method: "POST",
+        headers: {
+          "x-service-key": serviceApiKey,
+          "x-user-id": session.user.id,
+        },
+        body: uploadForm,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`File service upload failed with status ${uploadResponse.status}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResult.success || !uploadResult.data) {
+        throw new Error(uploadResult.error || "File service returned an invalid response");
+      }
+
+      const savedFilename = uploadResult.data.filename;
+      const publicFileServiceUrl = process.env.NEXT_PUBLIC_FILE_SERVICE_URL || "http://localhost:4003";
+      const fileUrl = `${publicFileServiceUrl}/api/files/${savedFilename}/download`;
 
       // Also index documents into the RAG store (file service) so the
       // agent's search_documents tool can find them in later messages.
@@ -76,25 +88,24 @@ export async function POST(req: NextRequest) {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ];
       if (RAG_TYPES.includes(file.type)) {
-        const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:4003";
-        const form = new FormData();
-        form.append("document", new Blob([buffer], { type: file.type }), file.name);
+        const docForm = new FormData();
+        docForm.append("document", new Blob([buffer], { type: file.type }), file.name);
         fetch(`${fileServiceUrl}/api/documents/upload`, {
           method: "POST",
           headers: {
-            "x-service-key": process.env.SERVICE_API_KEY || "dev-service-key",
+            "x-service-key": serviceApiKey,
             "x-user-id": session.user.id,
           },
-          body: form,
+          body: docForm,
         }).catch((err) => console.error("RAG indexing failed:", err.message));
       }
 
       uploadedFiles.push({
-        id: uuidv4(),
+        id: uploadResult.data.id || uuidv4(),
         name: file.name,
         type: file.type,
         size: file.size,
-        url: `/uploads/${uniqueFilename}`,
+        url: fileUrl,
       });
     }
 
