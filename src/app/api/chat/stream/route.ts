@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // Process attachments to extract text content
     if (attachments && attachments.length > 0) {
       try {
-        const { textContent } = await processAttachments(attachments);
+        const { textContent } = await processAttachments(attachments, userId);
         attachmentContext = textContent;
       } catch (err) {
         console.error("Attachment processing error:", err);

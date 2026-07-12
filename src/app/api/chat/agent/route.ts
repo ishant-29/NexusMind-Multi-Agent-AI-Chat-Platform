@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     let enhancedContent = content || "";
     if (attachments && attachments.length > 0) {
       try {
-        const { textContent } = await processAttachments(attachments);
+        const { textContent } = await processAttachments(attachments, userId);
         if (textContent) {
           enhancedContent = `${textContent}\n\nUser message: ${content || "Please review the attached file(s)."}`;
         }

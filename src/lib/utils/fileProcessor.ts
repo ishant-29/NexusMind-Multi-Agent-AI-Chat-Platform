@@ -1,53 +1,9 @@
-import { readFile } from "fs/promises";
-import { join } from "path";
-
-export async function extractTextFromFile(
-  filePath: string,
-  fileType: string
-): Promise<{ text: string | null; error?: string }> {
-  try {
-    let buffer: Buffer;
-
-    if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
-      const response = await fetch(filePath);
-      if (!response.ok) {
-        return { text: null, error: `Failed to fetch remote attachment: HTTP ${response.status} (${response.statusText}) from URL [${filePath}]` };
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-    } else {
-      const fullPath = join(process.cwd(), "public", filePath);
-      buffer = await readFile(fullPath);
-    }
-
-    // Extract text based on file type
-    if (fileType === "application/pdf") {
-      const { PDFParse } = require("pdf-parse");
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      const result = await parser.getText();
-      const meaningful = result.text.replace(/--\s*\d+\s*of\s*\d+\s*--/g, "").trim();
-      return { text: meaningful.length > 0 ? result.text : null, error: meaningful.length > 0 ? undefined : "PDF has no text characters (scanned image)" };
-    } else if (fileType === "text/plain") {
-      return { text: buffer.toString("utf-8") };
-    } else if (
-      fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      const mammoth = require("mammoth");
-      const result = await mammoth.extractRawText({ buffer });
-      return { text: result.value };
-    } else if (fileType === "application/msword") {
-      return { text: buffer.toString("utf-8") };
-    }
-
-    return { text: null, error: `Unsupported file type: ${fileType}` };
-  } catch (error: any) {
-    console.error("Error extracting text from file:", error);
-    return { text: null, error: `${error.name || "Error"}: ${error.message || error}` };
-  }
-}
+const FILE_SERVICE_URL = process.env.FILE_SERVICE_URL || "http://localhost:4003";
+const SERVICE_API_KEY = process.env.SERVICE_API_KEY || "dev-service-key";
 
 export async function processAttachments(
-  attachments: any[]
+  attachments: any[],
+  userId: string
 ): Promise<{ textContent: string }> {
   if (!attachments || attachments.length === 0) {
     return { textContent: "" };
@@ -65,20 +21,52 @@ export async function processAttachments(
       continue;
     }
 
-    // For documents, extract text
+    // For documents, get text content from file service
     if (
       type === "application/pdf" ||
       type === "text/plain" ||
       type.includes("word")
     ) {
-      const result = await extractTextFromFile(url, type);
-      if (result.text) {
+      try {
+        // Extract filename from URL (e.g. /api/files/filename/download)
+        const match = url.match(/\/api\/files\/([^\/]+)/);
+        const filename = match ? match[1] : null;
+
+        if (!filename) {
+          throw new Error("Could not parse filename from attachment URL");
+        }
+
+        // Fetch file record from file service to get textContent
+        const response = await fetch(`${FILE_SERVICE_URL}/api/files/${filename}`, {
+          headers: {
+            "x-service-key": SERVICE_API_KEY,
+            "x-user-id": userId,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`File service returned HTTP ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        if (!result.success || !result.data) {
+          throw new Error(result.error || "Invalid response from file service");
+        }
+
+        const text = result.data.textContent;
+        if (text) {
+          processedFiles.push(
+            `[Document: ${name}]\nContent:\n${text.substring(0, 10000)}\n[End of ${name}]`
+          );
+        } else {
+          processedFiles.push(
+            `[Document: ${name} - No readable text found. This is likely an empty file or a scanned image.]`
+          );
+        }
+      } catch (err: any) {
+        console.error(`Error processing attachment ${name}:`, err);
         processedFiles.push(
-          `[Document: ${name}]\nContent:\n${result.text.substring(0, 10000)}\n[End of ${name}]`
-        );
-      } else {
-        processedFiles.push(
-          `[Document: ${name} - No readable text found. Reason/Details: ${result.error || "unknown"}. Please report this exact error/reason to the user so they know what failed.]`
+          `[Document: ${name} - Text extraction failed. (Details: ${err.message || err})]`
         );
       }
     }
