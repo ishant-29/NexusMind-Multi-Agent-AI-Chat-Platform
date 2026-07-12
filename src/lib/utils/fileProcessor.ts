@@ -4,14 +4,14 @@ import { join } from "path";
 export async function extractTextFromFile(
   filePath: string,
   fileType: string
-): Promise<string | null> {
+): Promise<{ text: string | null; error?: string }> {
   try {
     let buffer: Buffer;
 
     if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
       const response = await fetch(filePath);
       if (!response.ok) {
-        throw new Error(`Failed to fetch remote attachment: ${response.status}`);
+        return { text: null, error: `Failed to fetch remote attachment: HTTP ${response.status} (${response.statusText}) from URL [${filePath}]` };
       }
       const arrayBuffer = await response.arrayBuffer();
       buffer = Buffer.from(arrayBuffer);
@@ -22,31 +22,27 @@ export async function extractTextFromFile(
 
     // Extract text based on file type
     if (fileType === "application/pdf") {
-      // pdf-parse v2 exposes a class API (v1's pdfParse(buffer) is gone)
       const { PDFParse } = require("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(buffer) });
       const result = await parser.getText();
-      // Scanned/image-only PDFs yield just "-- N of M --" page markers;
-      // treat that as no text so the caller can say so explicitly
       const meaningful = result.text.replace(/--\s*\d+\s*of\s*\d+\s*--/g, "").trim();
-      return meaningful.length > 0 ? result.text : null;
+      return { text: meaningful.length > 0 ? result.text : null, error: meaningful.length > 0 ? undefined : "PDF has no text characters (scanned image)" };
     } else if (fileType === "text/plain") {
-      return buffer.toString("utf-8");
+      return { text: buffer.toString("utf-8") };
     } else if (
       fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
       const mammoth = require("mammoth");
       const result = await mammoth.extractRawText({ buffer });
-      return result.value;
+      return { text: result.value };
     } else if (fileType === "application/msword") {
-      // Basic DOC support (limited)
-      return buffer.toString("utf-8");
+      return { text: buffer.toString("utf-8") };
     }
 
-    return null;
-  } catch (error) {
+    return { text: null, error: `Unsupported file type: ${fileType}` };
+  } catch (error: any) {
     console.error("Error extracting text from file:", error);
-    return null;
+    return { text: null, error: `${error.name || "Error"}: ${error.message || error}` };
   }
 }
 
@@ -75,14 +71,14 @@ export async function processAttachments(
       type === "text/plain" ||
       type.includes("word")
     ) {
-      const text = await extractTextFromFile(url, type);
-      if (text) {
+      const result = await extractTextFromFile(url, type);
+      if (result.text) {
         processedFiles.push(
-          `[Document: ${name}]\nContent:\n${text.substring(0, 10000)}\n[End of ${name}]`
+          `[Document: ${name}]\nContent:\n${result.text.substring(0, 10000)}\n[End of ${name}]`
         );
       } else {
         processedFiles.push(
-          `[Document: ${name} - No readable text found. This is likely a scanned or image-based file whose contents cannot be read without OCR. Tell the user this plainly and ask for a text-based version.]`
+          `[Document: ${name} - No readable text found. Reason/Details: ${result.error || "unknown"}. Please report this exact error/reason to the user so they know what failed.]`
         );
       }
     }
