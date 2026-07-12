@@ -6,8 +6,19 @@ export async function extractTextFromFile(
   fileType: string
 ): Promise<string | null> {
   try {
-    const fullPath = join(process.cwd(), "public", filePath);
-    const buffer = await readFile(fullPath);
+    let buffer: Buffer;
+
+    if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch remote attachment: ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } else {
+      const fullPath = join(process.cwd(), "public", filePath);
+      buffer = await readFile(fullPath);
+    }
 
     // Extract text based on file type
     if (fileType === "application/pdf") {
