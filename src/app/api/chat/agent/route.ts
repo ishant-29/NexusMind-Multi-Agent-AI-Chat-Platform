@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         stream: true,
         use_web_search: useWebSearch,
+        use_rag: !attachments || attachments.length === 0, // Disable RAG if file text is already attached in the prompt
       }),
     });
 
