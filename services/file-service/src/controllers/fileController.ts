@@ -92,9 +92,9 @@ export const getFile = async (req: AuthRequest, res: Response) => {
 export const downloadFile = async (req: AuthRequest, res: Response) => {
   try {
     const { filename } = req.params;
-    const userId = req.user?.userId;
 
-    const fileRecord = await File.findOne({ filename, userId });
+    // Look up by filename only since it's a public download endpoint
+    const fileRecord = await File.findOne({ filename });
     if (!fileRecord) {
       return res.status(404).json({ error: 'File not found' });
     }
